@@ -1,22 +1,41 @@
-import {load} from "cheerio";
-import {default as axios} from "axios";
+import { load } from "cheerio";
+import axios from "axios";
 
-export const resolvedImages  = async(urls) => {
-	let resolvedImages: any[] = []
-	
-	for(let url of urls){
-   	 const headers = {
-  	      "User-Agent": "Mozilla/5.0 (Linux; Android 12; SM-S906N Build/QP1A.190711.020; wv) AppleWebKit/537.36 (KHTML, como Gecko) Versão/4.0 Chrome/80.0.3987.119 Mobile Safari/537.36",
-	    }
- 	   const response = await axios.get(url, {headers});
-	    let $ = load(`${response.data}`);
- 	   let data: any[] = []
- 	   $(".container img").map((index, element) => {
-			const image = $(element).attr("src")
-  	      if(!image?.endsWith(".svg")){
-				resolvedImages.push(image);
-			}
-  	  });
-	}
-	return resolvedImages;
-}
+export const resolvedImages = async (urls: string[]) => {
+  let postPages: string[] = [];
+  let fullImages: string[] = [];
+
+  const headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36"
+  };
+
+  for (let url of urls) {
+    try {
+      const response = await axios.get(url, { headers });
+      const $ = load(response.data);
+
+      // Get links to post pages from thumbnails
+      $("span.thumb a").each((_, el) => {
+        const href = $(el).attr("href");
+        if (href) postPages.push("https://rule34.xxx/" + href);
+      });
+    } catch (err) {
+      console.error(`❌ Failed to fetch URL: ${url}`);
+    }
+  }
+
+  for (let postUrl of postPages) {
+    try {
+      const res = await axios.get(postUrl, { headers });
+      const $ = load(res.data);
+      const fullImage = $("#image").attr("src");
+      if (fullImage && !fullImage.endsWith(".svg")) {
+        fullImages.push(fullImage.startsWith("http") ? fullImage : "https:" + fullImage);
+      }
+    } catch (err) {
+      console.error(`⚠️ Failed to fetch image from post: ${postUrl}`);
+    }
+  }
+
+  return fullImages;
+};
